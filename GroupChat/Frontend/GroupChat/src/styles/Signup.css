@@ -1,0 +1,346 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+
+/* ---------- Tokens ---------- */
+:root {
+  --page: #ffffff;
+  --ink: #12142b;
+  --muted: #5d627f;
+  --line: #dcdff0;
+  --field: #f7f8fd;
+  --brand: #4337e0;
+  --brand-deep: #3226b8;
+  --ring: rgba(67, 55, 224, 0.2);
+  --online: #2bd4a0;
+  --danger: #dc3545;
+  --toast-bg: #ffffff;
+  --toast-shadow: 0 18px 40px -16px rgba(18, 20, 43, 0.35);
+  --panel: #3b2fd0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #101223;
+    --ink: #eef0ff;
+    --muted: #a0a5cf;
+    --line: #2f3360;
+    --field: #181a33;
+    --brand: #7b72ff;
+    --brand-deep: #675cf0;
+    --ring: rgba(123, 114, 255, 0.3);
+    --toast-bg: #1c1f3d;
+    --toast-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.7);
+    --panel: #2a21a6;
+  }
+}
+
+/* ---------- Page: two columns, brand panel + form ---------- */
+.signup-container {
+  box-sizing: border-box;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  background: var(--page);
+  color: var(--ink);
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
+}
+
+/* Left panel. Overlapping discs read as a group of people. */
+.signup-container::before {
+  content: "Your groups, your people, one conversation.";
+  grid-column: 1;
+  grid-row: 1;
+  box-sizing: border-box;
+  display: grid;
+  align-content: end;
+  padding: 64px;
+  font-size: clamp(2rem, 3.3vw, 3.2rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  color: #ffffff;
+  background-color: var(--panel);
+  background-image: radial-gradient(
+      circle at 22% 20%,
+      rgba(255, 255, 255, 0.13) 0 150px,
+      transparent 151px
+    ),
+    radial-gradient(
+      circle at 62% 34%,
+      rgba(255, 255, 255, 0.09) 0 190px,
+      transparent 191px
+    ),
+    radial-gradient(
+      circle at 40% 48%,
+      rgba(43, 212, 160, 0.95) 0 54px,
+      transparent 55px
+    ),
+    radial-gradient(
+      circle at 14% 56%,
+      rgba(255, 255, 255, 0.2) 0 38px,
+      transparent 39px
+    );
+}
+
+/* ---------- Form column ---------- */
+.signup-form {
+  grid-column: 2;
+  grid-row: 1;
+  box-sizing: border-box;
+  align-self: center;
+  justify-self: center;
+  width: min(100%, 440px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 48px 40px;
+}
+
+/* Small bubble mark above the heading */
+.signup-form::before {
+  content: "";
+  width: 44px;
+  height: 44px;
+  margin-bottom: 20px;
+  border-radius: 14px 14px 14px 4px;
+  background: var(--brand);
+  box-shadow: 0 12px 24px -10px var(--brand);
+}
+
+.signup-form h2 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+.signup-form h2 + p {
+  margin: 4px 0 18px;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* ---------- Fields ---------- */
+.signup-form label {
+  margin-top: 14px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.signup-form input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease,
+    background-color 0.16s ease;
+}
+
+.signup-form input::placeholder {
+  color: var(--muted);
+  opacity: 0.65;
+}
+
+.signup-form input:hover {
+  border-color: var(--brand);
+}
+
+.signup-form input:focus {
+  background: var(--page);
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+/* Red border only after the person has typed something invalid */
+.signup-form input:not(:placeholder-shown):invalid {
+  border-color: var(--danger);
+}
+
+.signup-form input:not(:placeholder-shown):invalid:focus {
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.2);
+}
+
+.signup-form input:-webkit-autofill {
+  -webkit-text-fill-color: var(--ink);
+  box-shadow: 0 0 0 100px var(--field) inset;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+/* ---------- Buttons ---------- */
+.signup-form button {
+  height: 48px;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: background-color 0.16s ease, border-color 0.16s ease,
+    color 0.16s ease, transform 0.12s ease, box-shadow 0.16s ease;
+}
+
+.signup-form button[type="submit"] {
+  margin-top: 22px;
+  color: #ffffff;
+  background: var(--brand);
+  border: 0;
+  box-shadow: 0 10px 20px -12px var(--brand);
+}
+
+.signup-form button[type="submit"]:hover {
+  background: var(--brand-deep);
+}
+
+.signup-form button[type="submit"]:active {
+  transform: translateY(1px);
+}
+
+.signup-form button[type="submit"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Divider with the "have an account?" prompt */
+.signup-form button[type="submit"] ~ p {
+  margin: 24px 0 4px;
+  padding-top: 22px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+}
+
+.signup-form button[type="button"] {
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line);
+}
+
+.signup-form button[type="button"]:hover {
+  color: var(--brand);
+  border-color: var(--brand);
+}
+
+.signup-form button:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* ---------- Toast: top-right notification ---------- */
+.toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 20;
+  box-sizing: border-box;
+  max-width: min(360px, calc(100% - 40px));
+  padding: 14px 18px;
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink);
+  background: var(--toast-bg);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--brand);
+  border-radius: 10px;
+  box-shadow: var(--toast-shadow);
+  animation: toast-in 0.25s ease-out both;
+}
+
+.toast.success {
+  border-left-color: var(--online);
+}
+
+.toast.error {
+  border-left-color: var(--danger);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ---------- One entrance moment: the form fades up ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .signup-form {
+    animation: form-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  @keyframes form-in {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+
+  .signup-form input,
+  .signup-form button {
+    transition: none;
+  }
+}
+
+/* ---------- Tablet and phone: panel becomes a banner on top ---------- */
+@media (max-width: 900px) {
+  .signup-container {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+
+  .signup-container::before {
+    grid-column: 1;
+    grid-row: 1;
+    min-height: 150px;
+    padding: 28px 24px;
+    font-size: 1.5rem;
+    background-position: center;
+  }
+
+  .signup-form {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: start;
+    padding: 32px 24px 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .signup-form h2 {
+    font-size: 1.7rem;
+  }
+
+  .toast {
+    top: 12px;
+    right: 12px;
+    left: 12px;
+    max-width: none;
+  }
+}

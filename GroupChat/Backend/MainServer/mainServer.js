@@ -3,6 +3,8 @@ import { mainRouter } from "../Routes/mainRouter.js";
 import { errorHandler } from "../Middleware/errorHandler.js";
 import dotenv from "dotenv";
 import { sequelize } from "../Database/db.js";
+import cors from "cors";
+
 
 dotenv.config();
 
@@ -13,6 +15,11 @@ await sequelize.sync();
 const app = express();
 
 app.use(express.json());
+
+app.use(cors({
+    origin: "http://localhost:5173",
+    credentials: true
+}));
 
 app.use("/groupChat",mainRouter);
 
