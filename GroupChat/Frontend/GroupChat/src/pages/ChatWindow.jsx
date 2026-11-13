@@ -139,7 +139,7 @@ function MessageRow({ msg, isOwn, isFirst, isLast }) {
 
 /* ---------- Page ---------- */
 
-function Home() {
+function ChatWindow() {
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [draft, setDraft] = useState("");
   const [unread, setUnread] = useState(0);
@@ -427,4 +427,4 @@ function Home() {
   );
 }
 
-export default Home;
+export default ChatWindow;

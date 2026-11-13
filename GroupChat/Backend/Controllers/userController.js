@@ -1,4 +1,4 @@
-import {User} from "../Database/userDb.js";
+import {User} from "../Database/indexDb.js";
 import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
