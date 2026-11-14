@@ -7,4 +7,6 @@ const chatRouter = express.Router();
 
 chatRouter.post("/storeMessage", authMiddleware, chatController.storeMessage);
 
+chatRouter.get("/fetchMessages",authMiddleware, chatController.fetchMessages);
+
 export {chatRouter};

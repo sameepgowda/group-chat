@@ -7,6 +7,9 @@ import {
   useState,
 } from "react";
 import "../styles/Home.css";
+import axios from "axios";
+
+axios.defaults.withCredentials = true;
 
 // TODO: replace with the logged-in user (from your login response)
 const CURRENT_USER = { id: 1, name: "You" };
@@ -26,6 +29,15 @@ const daysAgoAt = (days, hours, minutes) => {
   return d.toISOString();
 };
 
+const fetchMessages = async ()=>{
+  try{
+    const response = await axios.get("http://localhost:3000/groupChat/chat/fetchMessages");
+    return response.data.messages;
+  }catch(err){
+    console.log(err);
+  }
+}
+
 const minutesAgo = (m) => new Date(Date.now() - m * 60 * 1000).toISOString();
 
 const TEAMMATES = [
@@ -42,20 +54,20 @@ const DEMO_REPLIES = [
   "Haha, exactly what I was thinking.",
 ];
 
-const INITIAL_MESSAGES = [
-  { id: 1, senderId: 2, senderName: "Priya", text: "Great work on the release, team!", createdAt: daysAgoAt(1, 18, 2) },
-  { id: 2, senderId: 3, senderName: "Arjun", text: "Thanks! Deployed it on EC2 after lunch.", createdAt: daysAgoAt(1, 18, 3) },
-  { id: 3, senderId: 3, senderName: "Arjun", text: "NGINX and PM2 are both set up.", createdAt: daysAgoAt(1, 18, 4) },
-  { id: 4, senderId: 1, senderName: "You", text: "Nice, HTTPS is live too.", createdAt: daysAgoAt(1, 18, 10) },
-  { id: 5, senderId: 4, senderName: "Meera", text: "Morning everyone! Standup in 10 minutes.", createdAt: minutesAgo(95) },
-  { id: 6, senderId: 5, senderName: "Rohan", text: "On my way.", createdAt: minutesAgo(93) },
-  { id: 7, senderId: 1, senderName: "You", text: "Joining now.", createdAt: minutesAgo(91) },
-  { id: 8, senderId: 4, senderName: "Meera", text: "Quick reminder: the demo is scheduled for Friday, so please have your parts of the project ready, tested and deployed by Thursday evening.", createdAt: minutesAgo(60) },
-  { id: 9, senderId: 1, senderName: "You", text: "Mine is already live.", createdAt: minutesAgo(58) },
-  { id: 10, senderId: 2, senderName: "Priya", text: "Same here.", createdAt: minutesAgo(41) },
-  { id: 11, senderId: 2, senderName: "Priya", text: "Anyone free to review my pull request?", createdAt: minutesAgo(40) },
-  { id: 12, senderId: 3, senderName: "Arjun", text: "I can do it in 10 minutes.", createdAt: minutesAgo(12) },
-];
+// const INITIAL_MESSAGES = [
+//   { id: 1, senderId: 2, senderName: "Priya", text: "Great work on the release, team!", createdAt: daysAgoAt(1, 18, 2) },
+//   { id: 2, senderId: 3, senderName: "Arjun", text: "Thanks! Deployed it on EC2 after lunch.", createdAt: daysAgoAt(1, 18, 3) },
+//   { id: 3, senderId: 3, senderName: "Arjun", text: "NGINX and PM2 are both set up.", createdAt: daysAgoAt(1, 18, 4) },
+//   { id: 4, senderId: 1, senderName: "You", text: "Nice, HTTPS is live too.", createdAt: daysAgoAt(1, 18, 10) },
+//   { id: 5, senderId: 4, senderName: "Meera", text: "Morning everyone! Standup in 10 minutes.", createdAt: minutesAgo(95) },
+//   { id: 6, senderId: 5, senderName: "Rohan", text: "On my way.", createdAt: minutesAgo(93) },
+//   { id: 7, senderId: 1, senderName: "You", text: "Joining now.", createdAt: minutesAgo(91) },
+//   { id: 8, senderId: 4, senderName: "Meera", text: "Quick reminder: the demo is scheduled for Friday, so please have your parts of the project ready, tested and deployed by Thursday evening.", createdAt: minutesAgo(60) },
+//   { id: 9, senderId: 1, senderName: "You", text: "Mine is already live.", createdAt: minutesAgo(58) },
+//   { id: 10, senderId: 2, senderName: "Priya", text: "Same here.", createdAt: minutesAgo(41) },
+//   { id: 11, senderId: 2, senderName: "Priya", text: "Anyone free to review my pull request?", createdAt: minutesAgo(40) },
+//   { id: 12, senderId: 3, senderName: "Arjun", text: "I can do it in 10 minutes.", createdAt: minutesAgo(12) },
+// ];
 
 /* ---------- Helpers ---------- */
 
@@ -140,7 +152,7 @@ function MessageRow({ msg, isOwn, isFirst, isLast }) {
 /* ---------- Page ---------- */
 
 function ChatWindow() {
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
   const [unread, setUnread] = useState(0);
   const [showJump, setShowJump] = useState(false);
@@ -244,7 +256,15 @@ function ChatWindow() {
     return () => demoTimers.current.forEach(clearTimeout);
   }, []);
 
-  const sendMessage = () => {
+  useEffect(async () => {
+   const loadMessages = async () => {
+    const data = await fetchMessages();
+    setMessages(data ?? []);
+  };
+  loadMessages();
+  }, []);
+
+  const sendMessage = async () => {
     const text = draft.trim();
     if (!text) return;
 
@@ -257,11 +277,18 @@ function ChatWindow() {
     };
 
     // TODO: send it to the server here, for example socket.emit("message", message)
-    setMessages((prev) => [...prev, message]);
+    try{const response = await axios.post("http://localhost:3000/groupChat/chat/storeMessage",message);
+    if(response.status==201){
+      setMessages((prev) => [...prev, message]);
     setDraft("");
     textareaRef.current?.focus();
 
     simulateReply(); // DEMO ONLY
+    }
+      
+    }catch(err){
+      console.log(err);
+    }
   };
 
   const handleSubmit = (e) => {

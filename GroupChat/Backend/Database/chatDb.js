@@ -1,6 +1,7 @@
 import { sequelize } from "./db.js";
 import { DataTypes } from "sequelize";
 
+
 const Chat = sequelize.define("Chat",{
     id: {
     type: DataTypes.INTEGER,
@@ -12,3 +13,5 @@ const Chat = sequelize.define("Chat",{
     allowNull:false
   }
 })
+
+export {Chat};
