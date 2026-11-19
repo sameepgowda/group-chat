@@ -4,16 +4,22 @@ import { errorHandler } from "../Middleware/errorHandler.js";
 import dotenv from "dotenv";
 import { sequelize } from "../Database/db.js";
 import cors from "cors";
-
+import {createServer} from "http";
 import cookieParser from "cookie-parser";
+import { initializeSocket } from "../Websockets/ChatHandler.js";
 
 dotenv.config();
 
 await sequelize.authenticate();
 
-await sequelize.sync();
+await sequelize.sync({ alter: true });
 
 const app = express();
+
+
+const httpServer = createServer(app);
+
+initializeSocket(httpServer);
 
 app.use(express.json());
 
@@ -32,4 +38,4 @@ app.use((req,res,next)=>{
     res.status(404).json({message:"Page not found"});
 })
 
-app.listen(Number(process.env.SERVER_PORT));
+httpServer.listen(Number(process.env.SERVER_PORT));

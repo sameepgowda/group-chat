@@ -1,7 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
 
 /* ---------- Tokens (scoped, so this file works on its own) ---------- */
-.chat-page {
+.groups-page {
   --page: #eef1fb;
   --panel: #ffffff;
   --field: #f4f5fc;
@@ -9,20 +9,21 @@
   --muted: #5d627f;
   --line: #dcdff0;
   --brand: #4337e0;
-  --own: #4337e0;
+  --fill: #4337e0;
+  --fill-deep: #3226b8;
   --ring: rgba(67, 55, 224, 0.2);
-  --online: #2bd4a0;
-  --bubble: #ffffff;
-  --dot: rgba(67, 55, 224, 0.07);
-  --name-l: 38%;
   --av-bg-l: 90%;
   --av-ink-l: 30%;
+  --ok-bg: #e4faf1;
+  --ok-ink: #0b6b4d;
+  --err-bg: #ffecec;
+  --err-ink: #b42318;
   --shadow: 0 30px 60px -30px rgba(67, 55, 224, 0.45),
     0 8px 18px -10px rgba(18, 20, 43, 0.2);
 }
 
 @media (prefers-color-scheme: dark) {
-  .chat-page {
+  .groups-page {
     --page: #0c0d1c;
     --panel: #14162b;
     --field: #101226;
@@ -30,19 +31,21 @@
     --muted: #a0a5cf;
     --line: #2b2f5c;
     --brand: #7b72ff;
-    --own: #5b50f0;
+    --fill: #5b50f0;
+    --fill-deep: #6e64f5;
     --ring: rgba(123, 114, 255, 0.3);
-    --bubble: #1f2244;
-    --dot: rgba(255, 255, 255, 0.045);
-    --name-l: 72%;
     --av-bg-l: 30%;
     --av-ink-l: 88%;
+    --ok-bg: #123c30;
+    --ok-ink: #7df0c8;
+    --err-bg: #4a1e22;
+    --err-ink: #ffb4b8;
     --shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.8);
   }
 }
 
-/* ---------- Page and window ---------- */
-.chat-page {
+/* ---------- Page and card ---------- */
+.groups-page {
   box-sizing: border-box;
   min-height: 100vh;
   min-height: 100dvh;
@@ -55,12 +58,11 @@
     Roboto, sans-serif;
 }
 
-.chat-window {
-  width: min(100%, 880px);
-  height: min(calc(100dvh - 48px), 880px);
-  display: grid;
-  /* header, messages (takes the rest), composer */
-  grid-template-rows: auto minmax(0, 1fr) auto;
+.groups-card {
+  width: min(100%, 640px);
+  height: min(calc(100dvh - 48px), 760px);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   background: var(--panel);
   border: 1px solid var(--line);
@@ -69,360 +71,409 @@
 }
 
 /* ---------- Header ---------- */
-.chat-header {
+.groups-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel);
+  padding: 22px 24px 16px;
 }
 
-/* Same bubble shape as the signup page mark: one sharp corner */
-.chat-group-avatar {
+/* Same bubble mark as the signup page: one sharp corner */
+.groups-mark {
   flex: none;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
+  background: var(--fill);
+  border-radius: 14px 14px 14px 4px;
+  box-shadow: 0 12px 24px -10px var(--fill);
+}
+
+.groups-header h1 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.groups-header p {
+  margin: 2px 0 0;
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
+/* ---------- Tabs ---------- */
+.groups-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 24px 16px;
+  padding: 4px;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.groups-tabs button {
+  flex: 1;
+  height: 40px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: color 0.16s ease, background-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.groups-tabs button:hover {
+  color: var(--ink);
+}
+
+.groups-tabs button.active {
+  color: var(--brand);
+  background: var(--panel);
+  box-shadow: 0 0 0 1px var(--line), 0 6px 14px -8px rgba(18, 20, 43, 0.4);
+}
+
+.groups-tabs button:focus-visible,
+.groups-form button:focus-visible,
+.groups-modal-actions button:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* ---------- Message banner ---------- */
+.groups-message {
+  margin: 0 24px 12px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 12px;
+}
+
+.groups-message.success {
+  color: var(--ok-ink);
+  background: var(--ok-bg);
+}
+
+.groups-message.error {
+  color: var(--err-ink);
+  background: var(--err-bg);
+}
+
+/* ---------- Body ---------- */
+.groups-body {
+  flex: 1;
+  min-height: 0; /* lets the list scroll inside the card */
+  padding: 0 24px 24px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+.groups-empty {
+  margin: 0;
+  padding: 56px 0;
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+/* ---------- Group list ---------- */
+.groups-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A row is a div on My Groups and a button on Join Groups */
+.groups-item {
+  box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  transition: border-color 0.16s ease, transform 0.12s ease;
+}
+
+button.groups-item {
+  cursor: pointer;
+}
+
+button.groups-item:hover {
+  border-color: var(--brand);
+}
+
+button.groups-item:hover .groups-join-label {
+  background: var(--fill-deep);
+}
+
+button.groups-item:active {
+  transform: translateY(1px);
+}
+
+button.groups-item:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Each group gets its own colour, picked from its name */
+.groups-avatar {
+  flex: none;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 800;
   letter-spacing: 0.02em;
-  color: #ffffff;
-  background: var(--own);
+  color: hsl(var(--hue) 55% var(--av-ink-l));
+  background: hsl(var(--hue) 70% var(--av-bg-l));
   border-radius: 14px 14px 14px 4px;
 }
 
-.chat-header-text {
+.groups-name {
+  flex: 1;
   min-width: 0;
-}
-
-.chat-header-text h1 {
-  margin: 0;
-  font-size: 1.05rem;
   font-weight: 700;
-  letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.chat-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 2px 0 0;
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-
-.chat-status::before {
-  content: "";
+.groups-join-label {
   flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--online);
+  height: 36px;
+  padding: 0 18px;
+  display: grid;
+  place-items: center;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: var(--fill);
+  border-radius: 10px;
+  transition: background-color 0.16s ease;
 }
 
-/* ---------- Message list ---------- */
-.chat-messages-wrap {
-  position: relative;
-  min-height: 0; /* lets the list scroll instead of growing the page */
-}
-
-.chat-messages {
-  box-sizing: border-box;
-  height: 100%;
+/* ---------- Create group form ---------- */
+.groups-form {
   display: flex;
   flex-direction: column;
-  padding: 12px 16px 20px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
-  background-color: var(--field);
-  background-image: radial-gradient(var(--dot) 1px, transparent 1px);
-  background-size: 22px 22px;
+  gap: 6px;
+  padding-top: 4px;
 }
 
-.chat-day {
-  flex: none;
-  display: flex;
-  justify-content: center;
-  margin: 18px 0 8px;
-}
-
-.chat-day span {
-  padding: 4px 12px;
-  font-size: 0.75rem;
+.groups-form label {
+  font-size: 0.875rem;
   font-weight: 600;
-  color: var(--muted);
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 999px;
 }
 
-/* ---------- Messages ---------- */
-.chat-msg {
-  flex: none;
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  margin-top: 2px;
-}
-
-.chat-msg.first {
-  margin-top: 12px;
-}
-
-.chat-msg.own {
-  justify-content: flex-end;
-}
-
-.chat-avatar,
-.chat-avatar-spacer {
-  flex: none;
-  width: 32px;
-  height: 32px;
-}
-
-.chat-avatar {
-  display: grid;
-  place-items: center;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: hsl(var(--hue) 55% var(--av-ink-l));
-  background: hsl(var(--hue) 70% var(--av-bg-l));
-  border-radius: 50%;
-}
-
-.chat-bubble {
+.groups-form input {
   box-sizing: border-box;
-  max-width: min(78%, 520px);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 2px 12px;
-  padding: 8px 12px 7px;
-  font-size: 0.95rem;
-  line-height: 1.45;
-  border-radius: 18px;
-}
-
-.chat-msg.other .chat-bubble {
-  color: var(--ink);
-  background: var(--bubble);
-  border: 1px solid var(--line);
-}
-
-.chat-msg.own .chat-bubble {
-  color: #ffffff;
-  background: var(--own);
-}
-
-/* The last bubble of a group gets the sharp "tail" corner */
-.chat-msg.other.last .chat-bubble {
-  border-bottom-left-radius: 5px;
-}
-
-.chat-msg.own.last .chat-bubble {
-  border-bottom-right-radius: 5px;
-}
-
-.chat-sender {
-  flex-basis: 100%;
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: hsl(var(--hue) 55% var(--name-l));
-}
-
-.chat-text {
-  min-width: 0;
-  white-space: pre-wrap; /* keeps the new lines people type */
-  overflow-wrap: anywhere;
-}
-
-/* Time sits at the bottom right, on the same line when there is room */
-.chat-time {
-  margin-left: auto;
-  font-size: 0.68rem;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  opacity: 0.65;
-}
-
-/* ---------- Typing indicator ---------- */
-.chat-typing .chat-bubble {
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 4px;
-  padding: 13px 14px;
-}
-
-.chat-typing i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--muted);
-  animation: chat-bounce 1.2s infinite ease-in-out;
-}
-
-.chat-typing i:nth-child(2) {
-  animation-delay: 0.15s;
-}
-
-.chat-typing i:nth-child(3) {
-  animation-delay: 0.3s;
-}
-
-@keyframes chat-bounce {
-  0%,
-  60%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.5;
-  }
-  30% {
-    transform: translateY(-4px);
-    opacity: 1;
-  }
-}
-
-/* ---------- Jump to latest ---------- */
-.chat-jump {
-  position: absolute;
-  right: 18px;
-  bottom: 16px;
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  color: var(--ink);
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  box-shadow: 0 10px 22px -10px rgba(18, 20, 43, 0.5);
-  cursor: pointer;
-  transition: transform 0.15s ease, border-color 0.15s ease;
-}
-
-.chat-jump:hover {
-  border-color: var(--brand);
-  transform: translateY(-1px);
-}
-
-.chat-jump:focus-visible,
-.chat-send:focus-visible {
-  outline: 3px solid var(--ring);
-  outline-offset: 2px;
-}
-
-.chat-jump-badge {
-  position: absolute;
-  top: -7px;
-  right: -5px;
-  min-width: 20px;
-  height: 20px;
-  box-sizing: border-box;
-  display: grid;
-  place-items: center;
-  padding: 0 6px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #ffffff;
-  background: var(--own);
-  border-radius: 999px;
-}
-
-/* ---------- Message box ---------- */
-.chat-composer {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
-  background: var(--panel);
-  border-top: 1px solid var(--line);
-}
-
-.chat-input {
-  flex: 1;
-  min-width: 0;
-  box-sizing: border-box;
-  max-height: 120px;
-  padding: 12px 16px;
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
   font: inherit;
   font-size: 0.95rem;
-  line-height: 1.4;
   color: var(--ink);
   background: var(--field);
   border: 1px solid var(--line);
-  border-radius: 22px;
+  border-radius: 10px;
   outline: none;
-  resize: none;
-  overflow-y: auto;
   transition: border-color 0.16s ease, box-shadow 0.16s ease,
     background-color 0.16s ease;
 }
 
-.chat-input::placeholder {
+.groups-form input::placeholder {
   color: var(--muted);
-  opacity: 0.7;
+  opacity: 0.65;
 }
 
-.chat-input:focus {
+.groups-form input:hover {
+  border-color: var(--brand);
+}
+
+.groups-form input:focus {
   background: var(--panel);
   border-color: var(--brand);
   box-shadow: 0 0 0 3px var(--ring);
 }
 
-.chat-send {
-  flex: none;
-  width: 46px;
-  height: 46px;
+.groups-form button {
+  height: 48px;
+  margin-top: 16px;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: var(--fill);
+  border: 0;
+  border-radius: 10px;
+  box-shadow: 0 10px 20px -12px var(--fill);
+  cursor: pointer;
+  transition: background-color 0.16s ease, transform 0.12s ease;
+}
+
+.groups-form button:hover:not(:disabled) {
+  background: var(--fill-deep);
+}
+
+.groups-form button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.groups-form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ---------- Join confirmation popup ---------- */
+.groups-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
   display: grid;
   place-items: center;
+  padding: 16px;
+  background: rgba(12, 13, 28, 0.55);
+  backdrop-filter: blur(3px);
+}
+
+/* Chat-bubble shape again: one sharp corner */
+.groups-modal {
+  box-sizing: border-box;
+  width: min(100%, 400px);
+  padding: 26px 24px 22px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 22px 22px 22px 6px;
+  box-shadow: var(--shadow);
+}
+
+.groups-modal h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.groups-modal p {
+  margin: 8px 0 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.groups-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.groups-modal-actions button {
+  height: 42px;
+  padding: 0 20px;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
   color: #ffffff;
-  background: var(--own);
-  border: 0;
-  border-radius: 50%;
+  background: var(--fill);
+  border: 1px solid transparent;
+  border-radius: 10px;
   cursor: pointer;
-  transition: transform 0.12s ease, opacity 0.16s ease, filter 0.16s ease;
+  transition: background-color 0.16s ease, border-color 0.16s ease,
+    color 0.16s ease, transform 0.12s ease;
 }
 
-.chat-send:hover:not(:disabled) {
-  filter: brightness(1.1);
+.groups-modal-actions button:hover {
+  background: var(--fill-deep);
 }
 
-.chat-send:active:not(:disabled) {
-  transform: scale(0.94);
+.groups-modal-actions button:active {
+  transform: translateY(1px);
 }
 
-.chat-send:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+.groups-modal-actions button.secondary {
+  color: var(--ink);
+  background: transparent;
+  border-color: var(--line);
 }
 
-/* ---------- Motion ---------- */
-@media (prefers-reduced-motion: reduce) {
-  .chat-typing i {
-    animation: none;
+.groups-modal-actions button.secondary:hover {
+  color: var(--brand);
+  background: transparent;
+  border-color: var(--brand);
+}
+
+/* ---------- One entrance moment each: the card fades up, the popup pops in ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .groups-card {
+    animation: groups-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   }
 
-  .chat-jump,
-  .chat-send,
-  .chat-input {
+  .groups-modal {
+    animation: groups-pop 0.2s ease-out both;
+  }
+
+  @keyframes groups-in {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes groups-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .groups-tabs button,
+  .groups-item,
+  .groups-join-label,
+  .groups-form input,
+  .groups-form button,
+  .groups-modal-actions button {
     transition: none;
   }
 }
 
 /* ---------- Phones: full screen, no card ---------- */
 @media (max-width: 640px) {
-  .chat-page {
+  .groups-page {
     padding: 0;
   }
 
-  .chat-window {
+  .groups-card {
     width: 100%;
     height: 100vh;
     height: 100dvh;
@@ -431,15 +482,23 @@
     box-shadow: none;
   }
 
-  .chat-header {
-    padding: 12px 16px;
+  .groups-header {
+    padding: 18px 16px 14px;
   }
 
-  .chat-messages {
-    padding: 8px 12px 16px;
+  .groups-tabs {
+    margin: 0 16px 14px;
   }
 
-  .chat-bubble {
-    max-width: 86%;
+  .groups-tabs button {
+    font-size: 0.85rem;
+  }
+
+  .groups-message {
+    margin: 0 16px 12px;
+  }
+
+  .groups-body {
+    padding: 0 16px 16px;
   }
 }

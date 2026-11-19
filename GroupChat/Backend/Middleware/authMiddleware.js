@@ -7,6 +7,7 @@ dotenv.config();
 const JWTkey = process.env.JWT_KEY;
 
 const authMiddleware = (req,res,next) =>{
+    console.log("MIDDLEWARE")
     try{
         const authToken = req.cookies?.token;
         if(!authToken){

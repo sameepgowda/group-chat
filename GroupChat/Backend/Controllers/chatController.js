@@ -1,7 +1,6 @@
-import { Chat } from "../Database/indexDb.js";
+import { Chat, User } from "../Database/indexDb.js";
 
-const msgs = await Chat.findAll({raw:true,order:[["createdAt","desc"]]});
-console.log(msgs);
+
 
 const storeMessage = async (req , res , next) => {
     if(!req.UserId || !req.body.text){
@@ -19,15 +18,16 @@ const storeMessage = async (req , res , next) => {
 }
 
 const fetchMessages= async (req,res,next)=>{
-     if(!req.UserId){
+    console.log("HII")
+     if(!req.UserId || !req.body.groupId){
         return res.status(400).json({message:"Bad request"});
     }
     try{
-    const messages = await Chat.findAll({where:{UserId},raw:true});
-    const resMessages = messages.map((val)=>{return{
-        ...val,text:val.message
-    }})
-    res.status(200).json({messages:resMessages});
+    const messages = await Chat.findAll({where:{GroupGroupId:req.body.groupId},raw:true,include:[
+        {model:User, attributes:["username"]}
+    ]});
+    
+    res.status(200).json({UserId:req.UserId,messages});
     }catch(err){
         next(err);
     }

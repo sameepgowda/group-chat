@@ -1,7 +1,54 @@
 import {User} from "./userDb.js";
 import { Chat } from "./chatDb.js";
+import { Group } from "./group.js";
+import { sequelize } from "./db.js";
+import { DataTypes } from "sequelize";
 
-User.hasMany(Chat);
-Chat.belongsTo(User);
+User.hasMany(Chat,{
+});
+Chat.belongsTo(User,{
+}
+);
 
-export {User,Chat};
+Group.hasMany(Chat);
+Chat.belongsTo(Group);
+
+
+const UserGroup = sequelize.define("UserGroup", {
+    UserId: {
+        type: DataTypes.INTEGER,
+        allowNull: false
+    },
+    GroupId: {
+        type: DataTypes.INTEGER,
+        allowNull: false
+    }
+}, {
+    tableName: "UserGroups",
+    timestamps: false,
+    indexes: [
+        {
+            unique: true,
+            fields: ["UserId", "GroupId"]
+        }
+    ]
+});
+
+
+User.belongsToMany(Group, {
+    through: UserGroup,
+    foreignKey: "UserId",
+    otherKey: "GroupId",
+    as: "groups"
+});
+
+Group.belongsToMany(User, {
+    through: UserGroup,
+    foreignKey: "GroupId",
+    otherKey: "UserId",
+    as: "members"
+});
+
+
+
+export {User,Chat, Group, UserGroup};
