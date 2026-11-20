@@ -1,65 +1,12 @@
 
-import { Server } from "socket.io";
+
 import { Chat } from "../Database/chatDb.js";
 import { User } from "../Database/userDb.js";
 import { parse } from "cookie";
 import jwt from 'jsonwebtoken';
 
-function initializeSocket(httpServer) {
-
-    const io = new Server(httpServer, {
-        cors: {
-            origin: "http://localhost:5173",
-            credentials: true
-        }
-    });
-        io.use((socket, next) => {
-
-        try {
-
-            // 1. Get the cookie header.
-            const cookieHeader = socket.handshake.headers.cookie;
-
-            console.log(cookieHeader)
-
-            // 2. Parse the cookies.
-            const cookies = parse(cookieHeader || "");
-
-            // 3. Extract the JWT.
-            console.log(cookies);
-            const token = cookies.token; // Replace jwt with your actual cookie name.
-
-            if (!token) {
-                return next(new Error("Authentication required"));
-            }
-
-            // 4. Verify the JWT.
-            const decoded = jwt.verify(
-                token,
-                process.env.JWT_KEY
-            );
-
-            // 5. Attach authenticated user information to socket.
-            socket.user = decoded;
-
-            next();
-
-        } catch (err) {
-
-            console.error("Socket authentication failed:", err.message);
-
-            next(new Error("Invalid or expired token"));
-
-        }
-
-    });
-
-    io.on("connection", (socket) => {
-
-        console.log("Client connected:", socket.id);
-
-        // Join the requested group room.
-        socket.on("joinGroup", (groupId) => {
+function chatHandler(socket,io) {
+socket.on("joinGroup", (groupId) => {
 
             const roomName = `group_${groupId}`;
 
@@ -125,9 +72,8 @@ function initializeSocket(httpServer) {
             console.log("Client disconnected:", socket.id);
         });
 
-    });
 
-    return io;
+   
 }
 
-export { initializeSocket };
+export { chatHandler };

@@ -6,7 +6,7 @@ import { sequelize } from "../Database/db.js";
 import cors from "cors";
 import {createServer} from "http";
 import cookieParser from "cookie-parser";
-import { initializeSocket } from "../Websockets/ChatHandler.js";
+import { initializeSocket } from "../Websockets/index.js";
 
 dotenv.config();
 
