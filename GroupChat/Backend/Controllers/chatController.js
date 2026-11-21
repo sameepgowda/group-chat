@@ -1,4 +1,6 @@
 import { Chat, User } from "../Database/indexDb.js";
+import { PersonalChat } from "../Database/personalChatDb.js";
+import { Op } from "sequelize";
 
 
 
@@ -33,5 +35,22 @@ const fetchMessages= async (req,res,next)=>{
     }
 }
 
+const fetchPersonalMessages= async (req,res,next)=>{
+    
+     if(!req.UserId || !req.body.senderId){
+        return res.status(400).json({message:"Bad request"});
+    }
+    try{
+   const existing_messages = await PersonalChat.findAll({where:{[Op.or]:[{[Op.and]:[{senderId:req.UserId},{receiverId:req.body.senderId}]},{
+    [Op.and]:[{senderId:req.body.senderId},{receiverId:req.UserId}]
+   }]},raw:true,include:[{model:User,attributes:["username"]}]});
+ 
+    
+    res.status(200).json({UserId:req.UserId,messages:existing_messages});
+    }catch(err){
+        next(err);
+    }
+}
 
-export default {storeMessage,fetchMessages};
+
+export default {storeMessage,fetchMessages, fetchPersonalMessages};

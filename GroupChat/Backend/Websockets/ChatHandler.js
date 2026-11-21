@@ -2,24 +2,49 @@
 
 import { Chat } from "../Database/chatDb.js";
 import { User } from "../Database/userDb.js";
+import { PersonalChat } from "../Database/personalChatDb.js";
 import { parse } from "cookie";
 import jwt from 'jsonwebtoken';
 
 function chatHandler(socket,io) {
-socket.on("joinGroup", (groupId) => {
 
-            const roomName = `group_${groupId}`;
+        socket.on("joinGroup", (obj) => {
+            if(obj.isPersonal){
+    if (socket.userId) {
+    socket.join(`user_${socket.userId}`);
+  }
+
+            const roomName = `user_${obj.groupId}`;
 
             socket.join(roomName);
 
             console.log(`${socket.id} joined ${roomName}`);
+            console.log("joined room");
 
-        });
+        }else{
+            
+
+   
+
+            const roomName = `group_${obj.groupId}`;
+
+            socket.join(roomName);
+
+            console.log(`${socket.id} joined ${roomName}`);
+            console.log("joined room");
+
+        }});
+        
+
+
+    
+    
 
         // Receive and broadcast a message.
         socket.on("sendMessage", async (data) => {
 
             try {
+                console.log("DATA",data);
 
                 // Retrieve the sender from the database.
                 const sender = await User.findByPk(data.senderId);
@@ -32,14 +57,17 @@ socket.on("joinGroup", (groupId) => {
                 }
 
                 // Save the message.
+                let message;
+                console.log("data",data);
+                if(data.groupId){
                 const savedMessage = await Chat.create({
                     message: data.text,
                     GroupGroupId: data.groupId,
                     UserId: sender.id
                 });
-
+                
                 // Construct the message with the actual username.
-                const message = {
+                 message = {
                     id: savedMessage.id,
                     senderId: sender.id,
                     senderName: sender.username,
@@ -47,14 +75,31 @@ socket.on("joinGroup", (groupId) => {
                     groupId: data.groupId,
                     createdAt: savedMessage.createdAt
                 };
+            }else{
+                const savedMessage = await PersonalChat.create({message:data.text,
+                    senderId:data.senderId,receiverId:data.receiverId
+                })
+                  message = {
+                    id: savedMessage.id,
+                    senderId: sender.id,
+                    senderName: sender.username,
+                    text: savedMessage.message,
+                    receiverId: data.receiverId,
+                    createdAt: savedMessage.createdAt
+                };
+            }
 
                 console.log("Broadcasting message:", message);
 
                 // Send the message to everyone in this group.
-                io.to(`group_${data.groupId}`).emit(
-                    "receiveMessage",
-                    message
-                );
+                if (data.groupId) {
+  io.to(`group_${data.groupId}`).emit("receiveMessage", message);
+} else {
+  // Personal message: deliver to the receiver and back to the sender
+  io.to(`user_${data.receiverId}`)
+    .to(`user_${sender.id}`)
+    .emit("receiveMessage", message);
+}
 
             } catch (err) {
 

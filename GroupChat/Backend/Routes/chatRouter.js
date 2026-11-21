@@ -5,9 +5,13 @@ import authMiddleware from "../Middleware/authMiddleware.js";
 
 const chatRouter = express.Router();
 
+
+
 chatRouter.post("/storeMessage", authMiddleware, chatController.storeMessage);
 
 chatRouter.post("/fetchMessages",authMiddleware, chatController.fetchMessages);
+
+chatRouter.post("/fetchPersonalMessages", authMiddleware, chatController.fetchPersonalMessages);
 
 
 

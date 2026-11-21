@@ -9,11 +9,16 @@ const CREATE_GROUP = "http://localhost:3000/groupChat/group/createGroup"; // POS
 const JOIN_GROUP = "http://localhost:3000/groupChat/group/joinGroup"; // POST
 const FETCH_GROUPS = "http://localhost:3000/groupChat/group/fetchGroups"; // GET
 const FETCH_ALL_GROUPS = "http://localhost:3000/groupChat/group/fetchAllGroups"; // GET
+const FETCH_USERS = "http://localhost:3000/groupChat/user/fetchUsers"; // POST
+const FETCH_EXISTING_USERS = "http://localhost:3000/groupChat/user/fetchExistingUsers"; // GET
+
+const SEARCH_DELAY = 300; // ms to wait after the last keystroke
 
 const TABS = [
   { key: "joined", label: "My Groups" },
   { key: "join", label: "Join Groups" },
   { key: "create", label: "Create Group" },
+  { key: "message", label: "Message User" },
 ];
 
 function Home() {
@@ -22,8 +27,12 @@ function Home() {
   const [allGroups, setAllGroups] = useState([]); // every group
   const [groupName, setGroupName] = useState("");
   const [selectedGroup, setSelectedGroup] = useState(null); // group waiting for the join confirmation
-  const [openGroup, setOpenGroup] = useState(null); // joined group whose chat is open
+  const [openGroup, setOpenGroup] = useState(null); // chat that is open: a joined group, or a user (isPersonal)
   const [message, setMessage] = useState(null); // { type: "success" | "error", text }
+  const [email, setEmail] = useState(""); // text typed in the user search box
+  const [users, setUsers] = useState([]); // search results: [{ id, username, email }]
+  const [existingUsers, setExistingUsers] = useState([]); // existing users: [{ id, username }]
+  const [searched, setSearched] = useState(false); // true once a search has returned
 
   async function fetchGroups() {
     try {
@@ -46,6 +55,19 @@ function Home() {
       );
     } catch (err) {
       setMessage({ type: "error", text: "Could not load the groups" });
+    }
+  }
+
+  // Response shape: { userList: [{ id, username }] }
+  async function fetchExistingUsers() {
+    try {
+      const response = await axios.get(FETCH_EXISTING_USERS);
+      setExistingUsers(response.data.userList ?? []);
+    } catch (err) {
+      setMessage({
+        type: "error",
+        text: err.response?.data?.message || "Could not load the users",
+      });
     }
   }
 
@@ -78,11 +100,58 @@ function Home() {
     }
   }
 
+  // Opens a personal chat. The receiver's userId is passed as the groupId.
+  function openPersonalChat(user) {
+    setOpenGroup({
+      groupId: user.id,
+      groupName: user.username,
+      isPersonal: true,
+    });
+  }
+
   useEffect(() => {
     fetchGroups();
   }, []);
 
-  // A joined group was clicked: show its chat instead of the groups page
+  // Debounced user search. Runs only while the Message User tab is open.
+  // Response shape: { users: [{ id, username, email }] }
+  useEffect(() => {
+    if (tab !== "message") return;
+
+    const q = email.trim();
+    setSearched(false);
+
+    if (!q) {
+      setUsers([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    const timer = setTimeout(async () => {
+      try {
+        const response = await axios.post(FETCH_USERS, { email: q });
+        if (cancelled) return; // a newer search has started, ignore this result
+        setUsers(response.data.users ?? []);
+        setSearched(true);
+      } catch (err) {
+        if (cancelled) return;
+        setUsers([]);
+        setMessage({
+          type: "error",
+          text: err.response?.data?.message || "Could not search for users",
+        });
+      }
+    }, SEARCH_DELAY);
+
+    // Runs on the next keystroke or when the tab closes: cancels the pending search
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [email, tab]);
+
+  // A group or a user was clicked: show its chat instead of the groups page
   if (openGroup) {
     return <ChatWindow group={openGroup} onBack={() => setOpenGroup(null)} />;
   }
@@ -92,6 +161,10 @@ function Home() {
     tab === "joined"
       ? groups
       : allGroups.filter((g) => !groups.some((j) => j.groupId === g.groupId));
+
+  // Message User tab: existing users while the box is empty, search results once typing
+  const showExisting = !email.trim();
+  const shownUsers = showExisting ? existingUsers : users;
 
   return (
     <div className="groups-page">
@@ -116,6 +189,12 @@ function Home() {
                 setMessage(null);
                 if (t.key === "joined") fetchGroups();
                 if (t.key === "join") fetchAllGroups();
+                if (t.key === "message") {
+                  setEmail("");
+                  setUsers([]);
+                  setSearched(false);
+                  fetchExistingUsers();
+                }
               }}
             >
               {t.label}
@@ -145,6 +224,48 @@ function Home() {
                 Create Group
               </button>
             </form>
+          ) : tab === "message" ? (
+            <>
+              <div className="groups-form">
+                <label htmlFor="userEmail">Email ID</label>
+                <input
+                  id="userEmail"
+                  type="text"
+                  placeholder="Search by email"
+                  autoComplete="off"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+
+              {shownUsers.length > 0 ? (
+                <ul className="groups-list">
+                  {shownUsers.map((u) => (
+                    <li key={u.id}>
+                      <button
+                        type="button"
+                        className="groups-item"
+                        style={{ "--hue": (u.username.charCodeAt(0) * 37) % 360 }}
+                        onClick={() => openPersonalChat(u)}
+                      >
+                        <div className="groups-avatar" aria-hidden="true">
+                          {u.username.slice(0, 2).toUpperCase()}
+                        </div>
+                        <span className="groups-name">{u.username}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="groups-empty">
+                  {showExisting
+                    ? "No existing users yet."
+                    : searched
+                    ? "No users found."
+                    : "Searching..."}
+                </p>
+              )}
+            </>
           ) : list.length === 0 ? (
             <p className="groups-empty">
               {tab === "joined"

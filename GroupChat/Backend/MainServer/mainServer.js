@@ -12,7 +12,7 @@ dotenv.config();
 
 await sequelize.authenticate();
 
-await sequelize.sync({ alter: true });
+await sequelize.sync();
 
 const app = express();
 

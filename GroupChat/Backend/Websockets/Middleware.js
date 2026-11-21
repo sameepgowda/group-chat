@@ -32,7 +32,7 @@ io.use(async (socket, next) => {
             );
 
             // 5. Attach authenticated user information to socket.
-            socket.user = decoded;
+            socket.user = decoded.UserId;
             console.log(decoded)
             const user = await User.findByPk(decoded.UserId);
             if(!user){

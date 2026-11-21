@@ -1,6 +1,7 @@
 import {User} from "./userDb.js";
 import { Chat } from "./chatDb.js";
 import { Group } from "./group.js";
+import { PersonalChat } from "./personalChatDb.js";
 import { sequelize } from "./db.js";
 import { DataTypes } from "sequelize";
 
@@ -12,6 +13,15 @@ Chat.belongsTo(User,{
 
 Group.hasMany(Chat);
 Chat.belongsTo(Group);
+
+User.hasMany(PersonalChat, {
+    foreignKey: "senderId"
+    
+});
+
+PersonalChat.belongsTo(User, {
+    foreignKey: "senderId"
+});
 
 
 const UserGroup = sequelize.define("UserGroup", {

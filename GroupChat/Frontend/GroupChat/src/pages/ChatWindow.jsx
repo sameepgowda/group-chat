@@ -1,4 +1,3 @@
-
 import {
   useEffect,
   useLayoutEffect,
@@ -17,6 +16,11 @@ const SOCKET_URL = "http://localhost:3000";
 
 const FETCH_MESSAGES =
   "http://localhost:3000/groupChat/chat/fetchMessages";
+
+// POST { receiverId }. Expected response:
+// { UserId, User, messages: [{ id, message, senderId, receiverId, createdAt }] }
+const FETCH_PERSONAL_MESSAGES =
+  "http://localhost:3000/groupChat/chat/fetchPersonalMessages";
 
 const formatTime = (iso) =>
   new Date(iso).toLocaleTimeString("en-IN", {
@@ -55,6 +59,10 @@ function mergeMessages(existing, incoming) {
 
 function ChatWindow({ group, onBack }) {
 
+  // For a personal chat, group.groupId is the receiver's userId
+  // and group.groupName is the receiver's username.
+  const isPersonal = Boolean(group.isPersonal);
+
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
 
@@ -87,7 +95,10 @@ function ChatWindow({ group, onBack }) {
 
       console.log("Connected to Socket.IO:", socket.id);
 
-      socket.emit("joinGroup", group.groupId);
+      // For a personal chat this is the receiver's userId.
+      if(isPersonal){
+        socket.emit("joinGroup", {isPersonal:true,groupId:group.groupId})
+      }else{socket.emit("joinGroup", {isPersonal:false,groupId:group.groupId})};
 
     });
 
@@ -98,22 +109,31 @@ function ChatWindow({ group, onBack }) {
     // Receive new messages from the backend.
     socket.on("receiveMessage", (message) => {
 
-    const normalizedMessage = {
+      // In a personal chat, only show messages between you and this user.
+      // if (isPersonal) {
+      //   const belongsHere =
+      //     String(message.senderId) === String(group.groupId) ||
+      //     String(message.receiverId) === String(group.groupId);
+
+      //   if (!belongsHere) return;
+      // }
+
+      const normalizedMessage = {
         id: message.id,
         senderId: message.senderId,
         senderName: message.senderName,
         text: message.text,
         createdAt: message.createdAt,
         isOwn:
-            String(message.senderId) ===
-            String(currentUserIdRef.current)
-    };
+          String(message.senderId) ===
+          String(currentUserIdRef.current)
+      };
 
-    setMessages((prevMessages) =>
+      setMessages((prevMessages) =>
         mergeMessages(prevMessages, [normalizedMessage])
-    );
+      );
 
-});
+    });
 
     socket.on("messageError", (err) => {
       console.log("Message error:", err.message);
@@ -124,11 +144,17 @@ function ChatWindow({ group, onBack }) {
 
       try {
 
-        const response = await axios.post(
-          FETCH_MESSAGES,
-          { groupId: group.groupId },
-          { withCredentials: true }
-        );
+        const response = isPersonal
+          ? await axios.post(
+              FETCH_PERSONAL_MESSAGES,
+              { senderId: group.groupId },
+              { withCredentials: true }
+            )
+          : await axios.post(
+              FETCH_MESSAGES,
+              { groupId: group.groupId },
+              { withCredentials: true }
+            );
 
         if (!active) return;
 
@@ -143,19 +169,26 @@ function ChatWindow({ group, onBack }) {
 
         const normalizedMessages = (fetched ?? []).map((m) => {
 
-          const senderId = m.UserId;
+          // Group messages store the sender in UserId,
+          // personal messages store it in senderId.
+          const senderId = isPersonal ? m.senderId : m.UserId;
 
           const isOwn =
             String(senderId) === String(UserId);
+
+          // In a personal chat the other person is the receiver we opened.
+          const fallbackName = isOwn
+            ? currentUserNameRef.current
+            : isPersonal
+            ? group.groupName
+            : `User ${senderId}`;
 
           return {
             id: m.id,
             senderId,
 
-            // IMPORTANT: Backend returns "User.username".
-            senderName:
-              getSenderName(m) ||
-              (isOwn ? currentUserNameRef.current : `User ${senderId}`),
+            // IMPORTANT: Backend returns "User.username" for group messages.
+            senderName: getSenderName(m) || fallbackName,
 
             text: m.message,
             createdAt: m.createdAt,
@@ -197,7 +230,7 @@ function ChatWindow({ group, onBack }) {
 
     fetchMessages();
 
-    // Cleanup when switching groups or closing the chat.
+    // Cleanup when switching chats or closing the chat.
     return () => {
 
       active = false;
@@ -215,7 +248,7 @@ function ChatWindow({ group, onBack }) {
 
     };
 
-  }, [group.groupId]);
+  }, [group.groupId, isPersonal]);
 
   // Send a message through Socket.IO.
   function sendMessage(e) {
@@ -233,22 +266,41 @@ function ChatWindow({ group, onBack }) {
       return;
     }
 
-    if (!currentUserIdRef.current) {
-      console.log("User information is not available");
-      return;
+    // if (!currentUserIdRef.current) {
+    //   console.log("User information is not available");
+    //   return;
+    // }
+
+    if (isPersonal) {
+
+      // Personal message: text, senderId and receiverId (no groupId).
+      socket.emit("sendMessage", {
+
+    receiverId: group.groupId, // receiver's userId, passed from Home.jsx
+
+    senderId: currentUserIdRef.current,
+
+    senderName: currentUserNameRef.current,
+
+    text: trimmedText
+
+  });
+
+    } else {
+
+      socket.emit("sendMessage", {
+
+        groupId: group.groupId,
+
+        senderId: currentUserIdRef.current,
+
+        senderName: currentUserNameRef.current,
+
+        text: trimmedText
+
+      });
+
     }
-
-    socket.emit("sendMessage", {
-
-      groupId: group.groupId,
-
-      senderId: currentUserIdRef.current,
-
-      senderName: currentUserNameRef.current,
-
-      text: trimmedText
-
-    });
 
     setDraft("");
 

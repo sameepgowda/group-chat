@@ -2,6 +2,8 @@ import {User} from "../Database/indexDb.js";
 import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
+import { Op } from "sequelize";
+import { PersonalChat } from "../Database/personalChatDb.js";
 
 dotenv.config();
 
@@ -61,4 +63,38 @@ const login = async (req,res,next) => {
     }
 }
 
-export default {signUp,login};
+const fetchUsers = async (req,res,next) => {
+    const email = (req.body.email || "").trim();
+
+
+  try {
+    const users = await User.findAll({
+      where: {
+        email: { [Op.like]: `${email}%` },   // prefix match
+        id: { [Op.ne]: req.UserId },          // exclude yourself
+      },
+      attributes: ["id", "username"],   // never return passwords etc.
+      limit: 10,
+      raw:true
+    });
+
+    res.status(200).json({ users });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const fetchExistingUsers = async (req,res,next)=> {
+    try{
+const existing_messages = await PersonalChat.findAll({where:{[Op.or]:[{senderId:req.UserId},{receiverId:req.UserId}]},raw:true});
+    const exisitng_users = existing_messages.map((val)=>val.senderId==req.UserId?val.receiverId:val.senderId);
+    const userList = await User.findAll({where:{id:{[Op.in]:exisitng_users},id:{ [Op.ne]: req.UserId }},raw:true,attributes: ["id", "username"]});
+    res.status(200).json({userList});
+    }catch(err){
+        next(err);
+    }
+    
+}
+
+
+export default {signUp, login, fetchUsers, fetchExistingUsers};
