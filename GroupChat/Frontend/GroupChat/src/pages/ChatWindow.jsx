@@ -22,6 +22,12 @@ const FETCH_MESSAGES =
 const FETCH_PERSONAL_MESSAGES =
   "http://localhost:3000/groupChat/chat/fetchPersonalMessages";
 
+// POST multipart/form-data with the file in a field called "file".
+// Expected response: { url }, the file's S3 URL (a plain URL string also works).
+const UPLOAD_MEDIA = "";
+
+const MAX_MEDIA_SIZE = 10 * 1024 * 1024; // 10 MB
+
 const formatTime = (iso) =>
   new Date(iso).toLocaleTimeString("en-IN", {
     hour: "numeric",
@@ -57,6 +63,66 @@ function mergeMessages(existing, incoming) {
   return Array.from(uniqueMessages.values());
 }
 
+// Sends the file to the server, which stores it in S3 and returns the file's URL.
+async function uploadMedia(file) {
+
+  const formData = new FormData();
+
+  formData.append("file", file); // the server must read the field called "file"
+
+  const response = await axios.post(UPLOAD_MEDIA, formData, {
+    withCredentials: true
+  });
+
+  return typeof response.data === "string"
+    ? response.data
+    : response.data.url;
+
+}
+
+// Shows a message's attachment: an image, a video, or a link for anything else.
+function Media({ url, type }) {
+
+  // Only web links are shown, so a fake link can't run code
+  if (!/^https?:\/\//i.test(url)) return null;
+
+  const kind = type ?? "";
+
+  if (kind.startsWith("image/")) {
+    return (
+      <img
+        className="chat-media"
+        src={url}
+        alt=""
+        loading="lazy"
+      />
+    );
+  }
+
+  if (kind.startsWith("video/")) {
+    return (
+      <video
+        className="chat-media"
+        src={url}
+        controls
+        preload="metadata"
+      />
+    );
+  }
+
+  return (
+    <a
+      className="chat-file"
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+    >
+      Open attachment
+    </a>
+  );
+
+}
+
 function ChatWindow({ group, onBack }) {
 
   // For a personal chat, group.groupId is the receiver's userId
@@ -66,8 +132,14 @@ function ChatWindow({ group, onBack }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
 
+  // The file the user picked: { url, type, name }, ready to be sent
+  const [attachment, setAttachment] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [mediaError, setMediaError] = useState("");
+
   const listRef = useRef(null);
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
   const socketRef = useRef(null);
 
   const currentUserIdRef = useRef(null);
@@ -80,6 +152,8 @@ function ChatWindow({ group, onBack }) {
 
     setMessages([]);
     setDraft("");
+    setAttachment(null);
+    setMediaError("");
 
     currentUserIdRef.current = null;
     currentUserNameRef.current = "";
@@ -123,6 +197,8 @@ function ChatWindow({ group, onBack }) {
         senderId: message.senderId,
         senderName: message.senderName,
         text: message.text,
+        mediaUrl: message.mediaUrl ?? null,
+        mediaType: message.mediaType ?? null,
         createdAt: message.createdAt,
         isOwn:
           String(message.senderId) ===
@@ -191,6 +267,8 @@ function ChatWindow({ group, onBack }) {
             senderName: getSenderName(m) || fallbackName,
 
             text: m.message,
+            mediaUrl: m.mediaUrl ?? null,
+            mediaType: m.mediaType ?? null,
             createdAt: m.createdAt,
             isOwn
           };
@@ -257,7 +335,8 @@ function ChatWindow({ group, onBack }) {
 
     const trimmedText = draft.trim();
 
-    if (!trimmedText) return;
+    // A message needs some text or a file, and a file must finish uploading first.
+    if ((!trimmedText && !attachment) || uploading) return;
 
     const socket = socketRef.current;
 
@@ -276,15 +355,19 @@ function ChatWindow({ group, onBack }) {
       // Personal message: text, senderId and receiverId (no groupId).
       socket.emit("sendMessage", {
 
-    receiverId: group.groupId, // receiver's userId, passed from Home.jsx
+        receiverId: group.groupId, // receiver's userId, passed from Home.jsx
 
-    senderId: currentUserIdRef.current,
+        senderId: currentUserIdRef.current,
 
-    senderName: currentUserNameRef.current,
+        senderName: currentUserNameRef.current,
 
-    text: trimmedText
+        text: trimmedText,
 
-  });
+        mediaUrl: attachment?.url ?? null,
+
+        mediaType: attachment?.type ?? null
+
+      });
 
     } else {
 
@@ -296,13 +379,57 @@ function ChatWindow({ group, onBack }) {
 
         senderName: currentUserNameRef.current,
 
-        text: trimmedText
+        text: trimmedText,
+
+        mediaUrl: attachment?.url ?? null,
+
+        mediaType: attachment?.type ?? null
 
       });
 
     }
 
     setDraft("");
+    setAttachment(null);
+    setMediaError("");
+
+  }
+
+  // The user picked a file: upload it and keep the URL that comes back.
+  async function handleFileChange(e) {
+
+    const file = e.target.files[0];
+
+    e.target.value = ""; // lets the same file be chosen again
+
+    if (!file) return;
+
+    if (file.size > MAX_MEDIA_SIZE) {
+      setMediaError("That file is too large (10 MB maximum)");
+      return;
+    }
+
+    try {
+
+      setUploading(true);
+      setMediaError("");
+
+      const url = await uploadMedia(file);
+
+      if (!url) throw new Error("The server did not return a URL");
+
+      setAttachment({ url, type: file.type, name: file.name });
+
+    } catch (err) {
+
+      console.log("Could not upload the file:", err);
+      setMediaError("Could not upload the file");
+
+    } finally {
+
+      setUploading(false);
+
+    }
 
   }
 
@@ -402,9 +529,15 @@ function ChatWindow({ group, onBack }) {
                     {m.senderName}
                   </span>
 
-                  <span className="chat-text">
-                    {m.text}
-                  </span>
+                  {m.mediaUrl && (
+                    <Media url={m.mediaUrl} type={m.mediaType} />
+                  )}
+
+                  {m.text && (
+                    <span className="chat-text">
+                      {m.text}
+                    </span>
+                  )}
 
                   {m.createdAt && (
 
@@ -432,6 +565,79 @@ function ChatWindow({ group, onBack }) {
           onSubmit={sendMessage}
         >
 
+          {(uploading || attachment || mediaError) && (
+
+            <div className="chat-attachment">
+
+              {uploading && (
+                <span className="chat-attachment-status">
+                  Uploading…
+                </span>
+              )}
+
+              {attachment && (
+                <>
+                  {attachment.type.startsWith("image/") ? (
+                    <img src={attachment.url} alt="" />
+                  ) : (
+                    <span className="chat-attachment-name">
+                      {attachment.name}
+                    </span>
+                  )}
+
+                  <button
+                    type="button"
+                    className="chat-attachment-remove"
+                    onClick={() => setAttachment(null)}
+                    aria-label="Remove attachment"
+                  >
+                    ×
+                  </button>
+                </>
+              )}
+
+              {mediaError && (
+                <span className="chat-attachment-error">
+                  {mediaError}
+                </span>
+              )}
+
+            </div>
+
+          )}
+
+          <button
+            type="button"
+            className="chat-attach"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            aria-label="Attach a file"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*,application/pdf"
+            onChange={handleFileChange}
+            hidden
+          />
+
           <textarea
             ref={textareaRef}
             className="chat-input"
@@ -450,7 +656,7 @@ function ChatWindow({ group, onBack }) {
 
                 e.preventDefault();
 
-                if (draft.trim()) {
+                if (draft.trim() || attachment) {
                   e.target.form.requestSubmit();
                 }
 
@@ -462,7 +668,7 @@ function ChatWindow({ group, onBack }) {
           <button
             type="submit"
             className="chat-send"
-            disabled={!draft.trim()}
+            disabled={(!draft.trim() && !attachment) || uploading}
             aria-label="Send message"
           >
             <svg

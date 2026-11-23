@@ -443,3 +443,126 @@
     max-width: 86%;
   }
 }
+
+/* Add these rules to the end of ChatWindow.css.
+   They use the same colour variables as the rest of the chat styles. */
+
+/* The attachment preview sits on its own row above the text box */
+.chat-composer {
+  flex-wrap: wrap;
+}
+
+/* ---------- Attach button ---------- */
+.chat-attach {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: color 0.16s ease, border-color 0.16s ease;
+}
+
+.chat-attach:hover:not(:disabled) {
+  color: var(--brand);
+  border-color: var(--brand);
+}
+
+.chat-attach:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-attach:focus-visible,
+.chat-attachment-remove:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* ---------- Preview of the file waiting to be sent ---------- */
+.chat-attachment {
+  order: -1;
+  flex: 1 0 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.chat-attachment img {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.chat-attachment-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-attachment-status {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.chat-attachment-error {
+  font-weight: 600;
+  color: #e5484d;
+}
+
+.chat-attachment-remove {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.chat-attachment-remove:hover {
+  color: var(--brand);
+  background: var(--line);
+}
+
+/* ---------- Media inside a message bubble ---------- */
+.chat-media {
+  display: block;
+  flex-basis: 100%;
+  width: 320px;
+  max-width: 100%;
+  max-height: 280px;
+  margin: 2px 0 4px;
+  object-fit: cover;
+  background: var(--field);
+  border-radius: 12px;
+}
+
+.chat-file {
+  flex-basis: 100%;
+  font-weight: 700;
+  color: inherit;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
