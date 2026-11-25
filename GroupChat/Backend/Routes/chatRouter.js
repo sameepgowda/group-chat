@@ -19,6 +19,8 @@ chatRouter.post("/uploadMedia", authMiddleware, upload.single('file'), chatContr
 
 chatRouter.post("/generateReplyUsingAI", authMiddleware, chatController.generateReplyUsingAI);
 
+chatRouter.post("/autoCOmpleteUsingAI", authMiddleware, chatController.autoCompleteUsingAI);
+
 
 
 export {chatRouter};

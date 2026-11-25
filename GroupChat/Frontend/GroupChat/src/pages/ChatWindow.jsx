@@ -30,6 +30,10 @@ const UPLOAD_MEDIA = "http://localhost:3000/groupChat/chat/uploadMedia";
 // Expected response: { replies: "reply one|reply two|reply three" }
 const GENERATE_REPLY_USING_AI = "http://localhost:3000/groupChat/chat/generateReplyUsingAI";
 
+// POST { isPersonal: true, senderId, draft } or { isPersonal: false, groupId, draft }.
+// Expected response: { replies: "suggestion one|suggestion two|suggestion three" }
+const AUTOCOMPLETE_USING_AI = "http://localhost:3000/groupChat/chat/autoCompleteUsingAI";
+
 const MAX_MEDIA_SIZE = 10 * 1024 * 1024; // 10 MB
 
 const formatTime = (iso) =>
@@ -65,6 +69,15 @@ function mergeMessages(existing, incoming) {
   });
 
   return Array.from(uniqueMessages.values());
+}
+
+// The server sends the suggestions as one string: "one|two|three".
+function parseReplies(replies) {
+  return String(replies ?? "")
+    .split("|")
+    .map((reply) => reply.trim())
+    .filter(Boolean)
+    .slice(0, 3);
 }
 
 // Sends the file to the server, which stores it in S3 and returns the file's URL and key.
@@ -137,7 +150,8 @@ function ChatWindow({ group, onBack }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
 
-  // The AI reply suggestions shown above the text box
+  // The AI suggestions shown above the text box:
+  // replies to the latest message, or autocomplete suggestions while typing
   const [suggestions, setSuggestions] = useState([]);
 
   // The file the user picked: { url, key, type, name }, ready to be sent
@@ -156,6 +170,13 @@ function ChatWindow({ group, onBack }) {
   // Used to ignore old suggestion responses and to wait before asking again
   const suggestionRequestRef = useRef(0);
   const suggestionTimerRef = useRef(null);
+  const autocompleteRequestRef = useRef(0);
+
+  // The latest replies to the other person's message, shown again when the text box is empty
+  const replySuggestionsRef = useRef([]);
+
+  // The suggestion the user just clicked, so it isn't autocompleted again
+  const pickedReplyRef = useRef("");
 
   // Establish socket connection and fetch previous messages.
   useEffect(() => {
@@ -165,6 +186,7 @@ function ChatWindow({ group, onBack }) {
     setMessages([]);
     setDraft("");
     setSuggestions([]);
+    replySuggestionsRef.current = [];
     setAttachment(null);
     setMediaError("");
 
@@ -339,14 +361,13 @@ function ChatWindow({ group, onBack }) {
         // Ignore the answer if the chat changed or a newer request was made
         if (!active || requestId !== suggestionRequestRef.current) return;
 
-        // The replies come as one string: "reply one|reply two|reply three"
-        setSuggestions(
-          String(response.data.replies ?? "")
-            .split("|")
-            .map((reply) => reply.trim())
-            .filter(Boolean)
-            .slice(0, 3)
-        );
+        const replies = parseReplies(response.data.replies);
+
+        replySuggestionsRef.current = replies;
+
+        // While the user is typing, the autocomplete suggestions stay.
+        // These replies show up when the text box is empty again.
+        if (!textareaRef.current?.value.trim()) setSuggestions(replies);
 
       } catch (err) {
         console.log("Could not fetch suggestions:", err);
@@ -378,6 +399,54 @@ function ChatWindow({ group, onBack }) {
     };
 
   }, [group.groupId, isPersonal]);
+
+  // Autocomplete: 400 ms after the user stops typing, ask for suggestions that fit the draft.
+  useEffect(() => {
+
+    // Any older autocomplete request is out of date now
+    const requestId = ++autocompleteRequestRef.current;
+
+    // Nothing typed: show the replies to the latest message again
+    if (!draft.trim()) {
+      setSuggestions(replySuggestionsRef.current);
+      return;
+    }
+
+    // The draft was just filled in by clicking a suggestion, so leave the suggestions alone
+    if (draft === pickedReplyRef.current) return;
+
+    const timer = setTimeout(async () => {
+
+      try {
+
+        const response = await axios.post(
+          AUTOCOMPLETE_USING_AI,
+          {
+            ...(isPersonal
+              ? { isPersonal: true, senderId: group.groupId }
+              : { isPersonal: false, groupId: group.groupId }),
+            draft
+          },
+          { withCredentials: true }
+        );
+
+        // Ignore the answer if the user kept typing or the chat changed
+        if (requestId !== autocompleteRequestRef.current) return;
+
+        const replies = parseReplies(response.data.replies);
+
+        // The new suggestions take the place of the old ones
+        if (replies.length) setSuggestions(replies);
+
+      } catch (err) {
+        console.log("Could not fetch autocomplete suggestions:", err);
+      }
+
+    }, 400);
+
+    return () => clearTimeout(timer);
+
+  }, [draft, group.groupId, isPersonal]);
 
   // Send a message through Socket.IO.
   function sendMessage(e) {
@@ -448,6 +517,7 @@ function ChatWindow({ group, onBack }) {
     // and drop any suggestion request that is still on its way.
     clearTimeout(suggestionTimerRef.current);
     suggestionRequestRef.current++;
+    replySuggestionsRef.current = [];
     setSuggestions([]);
 
     setDraft("");
@@ -627,7 +697,7 @@ function ChatWindow({ group, onBack }) {
 
           <div
             className="chat-suggestions"
-            aria-label="Suggested replies"
+            aria-label="Suggestions"
           >
 
             {suggestions.map((reply) => (
@@ -637,6 +707,7 @@ function ChatWindow({ group, onBack }) {
                 type="button"
                 className="chat-suggestion"
                 onClick={() => {
+                  pickedReplyRef.current = reply;
                   setDraft(reply);
                   textareaRef.current?.focus();
                 }}
