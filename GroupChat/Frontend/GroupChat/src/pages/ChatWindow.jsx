@@ -23,8 +23,12 @@ const FETCH_PERSONAL_MESSAGES =
   "http://localhost:3000/groupChat/chat/fetchPersonalMessages";
 
 // POST multipart/form-data with the file in a field called "file".
-// Expected response: { url }, the file's S3 URL (a plain URL string also works).
-const UPLOAD_MEDIA = "";
+// Expected response: { fileURL, key }, the file's S3 URL and its S3 key.
+const UPLOAD_MEDIA = "http://localhost:3000/groupChat/chat/uploadMedia";
+
+// POST { isPersonal: true, senderId } or { isPersonal: false, groupId }.
+// Expected response: { replies: "reply one|reply two|reply three" }
+const GENERATE_REPLY_USING_AI = "http://localhost:3000/groupChat/chat/generateReplyUsingAI";
 
 const MAX_MEDIA_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -63,7 +67,7 @@ function mergeMessages(existing, incoming) {
   return Array.from(uniqueMessages.values());
 }
 
-// Sends the file to the server, which stores it in S3 and returns the file's URL.
+// Sends the file to the server, which stores it in S3 and returns the file's URL and key.
 async function uploadMedia(file) {
 
   const formData = new FormData();
@@ -74,9 +78,10 @@ async function uploadMedia(file) {
     withCredentials: true
   });
 
-  return typeof response.data === "string"
-    ? response.data
-    : response.data.url;
+  return {
+    url: response.data.fileURL,
+    key: response.data.key
+  };
 
 }
 
@@ -132,7 +137,10 @@ function ChatWindow({ group, onBack }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
 
-  // The file the user picked: { url, type, name }, ready to be sent
+  // The AI reply suggestions shown above the text box
+  const [suggestions, setSuggestions] = useState([]);
+
+  // The file the user picked: { url, key, type, name }, ready to be sent
   const [attachment, setAttachment] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [mediaError, setMediaError] = useState("");
@@ -145,6 +153,10 @@ function ChatWindow({ group, onBack }) {
   const currentUserIdRef = useRef(null);
   const currentUserNameRef = useRef("");
 
+  // Used to ignore old suggestion responses and to wait before asking again
+  const suggestionRequestRef = useRef(0);
+  const suggestionTimerRef = useRef(null);
+
   // Establish socket connection and fetch previous messages.
   useEffect(() => {
 
@@ -152,6 +164,7 @@ function ChatWindow({ group, onBack }) {
 
     setMessages([]);
     setDraft("");
+    setSuggestions([]);
     setAttachment(null);
     setMediaError("");
 
@@ -183,15 +196,7 @@ function ChatWindow({ group, onBack }) {
     // Receive new messages from the backend.
     socket.on("receiveMessage", (message) => {
 
-      // In a personal chat, only show messages between you and this user.
-      // if (isPersonal) {
-      //   const belongsHere =
-      //     String(message.senderId) === String(group.groupId) ||
-      //     String(message.receiverId) === String(group.groupId);
-
-      //   if (!belongsHere) return;
-      // }
-
+      if(!message.notification){
       const normalizedMessage = {
         id: message.id,
         senderId: message.senderId,
@@ -209,11 +214,21 @@ function ChatWindow({ group, onBack }) {
         mergeMessages(prevMessages, [normalizedMessage])
       );
 
+      // A message from someone else: ask for new suggestions.
+      // The short wait means a burst of messages makes only one request.
+      if (!normalizedMessage.isOwn) {
+        clearTimeout(suggestionTimerRef.current);
+        suggestionTimerRef.current = setTimeout(fetchSuggestions, 500);
+      }
+    }
+
     });
+  
 
     socket.on("messageError", (err) => {
       console.log("Message error:", err.message);
     });
+  
 
     // Fetch previously stored messages.
     async function fetchMessages() {
@@ -306,12 +321,48 @@ function ChatWindow({ group, onBack }) {
 
     }
 
+    // Ask the server for 3 reply suggestions. The server reads the latest messages itself.
+    async function fetchSuggestions() {
+
+      const requestId = ++suggestionRequestRef.current;
+
+      try {
+
+        const response = await axios.post(
+          GENERATE_REPLY_USING_AI,
+          isPersonal
+            ? { isPersonal: true, senderId: group.groupId }
+            : { isPersonal: false, groupId: group.groupId },
+          { withCredentials: true }
+        );
+
+        // Ignore the answer if the chat changed or a newer request was made
+        if (!active || requestId !== suggestionRequestRef.current) return;
+
+        // The replies come as one string: "reply one|reply two|reply three"
+        setSuggestions(
+          String(response.data.replies ?? "")
+            .split("|")
+            .map((reply) => reply.trim())
+            .filter(Boolean)
+            .slice(0, 3)
+        );
+
+      } catch (err) {
+        console.log("Could not fetch suggestions:", err);
+      }
+
+    }
+
     fetchMessages();
+    fetchSuggestions();
 
     // Cleanup when switching chats or closing the chat.
     return () => {
 
       active = false;
+
+      clearTimeout(suggestionTimerRef.current);
 
       socket.off("connect");
       socket.off("connect_error");
@@ -365,6 +416,8 @@ function ChatWindow({ group, onBack }) {
 
         mediaUrl: attachment?.url ?? null,
 
+        mediaKey: attachment?.key ?? null,
+
         mediaType: attachment?.type ?? null
 
       });
@@ -383,11 +436,19 @@ function ChatWindow({ group, onBack }) {
 
         mediaUrl: attachment?.url ?? null,
 
+        mediaKey: attachment?.key ?? null,
+
         mediaType: attachment?.type ?? null
 
       });
 
     }
+
+    // The suggestions were for the message you just answered, so remove them
+    // and drop any suggestion request that is still on its way.
+    clearTimeout(suggestionTimerRef.current);
+    suggestionRequestRef.current++;
+    setSuggestions([]);
 
     setDraft("");
     setAttachment(null);
@@ -395,7 +456,7 @@ function ChatWindow({ group, onBack }) {
 
   }
 
-  // The user picked a file: upload it and keep the URL that comes back.
+  // The user picked a file: upload it and keep the URL and key that come back.
   async function handleFileChange(e) {
 
     const file = e.target.files[0];
@@ -414,11 +475,13 @@ function ChatWindow({ group, onBack }) {
       setUploading(true);
       setMediaError("");
 
-      const url = await uploadMedia(file);
+      const { url, key } = await uploadMedia(file);
 
-      if (!url) throw new Error("The server did not return a URL");
+      if (!url || !key) {
+        throw new Error("The server did not return a URL and a key");
+      }
 
-      setAttachment({ url, type: file.type, name: file.name });
+      setAttachment({ url, key, type: file.type, name: file.name });
 
     } catch (err) {
 
@@ -559,6 +622,33 @@ function ChatWindow({ group, onBack }) {
           </div>
 
         </div>
+
+        {suggestions.length > 0 && (
+
+          <div
+            className="chat-suggestions"
+            aria-label="Suggested replies"
+          >
+
+            {suggestions.map((reply) => (
+
+              <button
+                key={reply}
+                type="button"
+                className="chat-suggestion"
+                onClick={() => {
+                  setDraft(reply);
+                  textareaRef.current?.focus();
+                }}
+              >
+                {reply}
+              </button>
+
+            ))}
+
+          </div>
+
+        )}
 
         <form
           className="chat-composer"

@@ -1,7 +1,7 @@
 import {User} from "./userDb.js";
-import { Chat } from "./chatDb.js";
+import { Chat, ArchivedChat } from "./chatDb.js";
 import { Group } from "./group.js";
-import { PersonalChat } from "./personalChatDb.js";
+import { PersonalChat, ArchivedPersonalChat } from "./personalChatDb.js";
 import { sequelize } from "./db.js";
 import { DataTypes } from "sequelize";
 
@@ -14,12 +14,32 @@ Chat.belongsTo(User,{
 Group.hasMany(Chat);
 Chat.belongsTo(Group);
 
+User.hasMany(ArchivedChat,{
+});
+ArchivedChat.belongsTo(User,{
+}
+);
+
+Group.hasMany(ArchivedChat);
+ArchivedChat.belongsTo(Group);
+
+
+
 User.hasMany(PersonalChat, {
     foreignKey: "senderId"
     
 });
 
 PersonalChat.belongsTo(User, {
+    foreignKey: "senderId"
+});
+
+User.hasMany(ArchivedPersonalChat, {
+    foreignKey: "senderId"
+    
+});
+
+ArchivedPersonalChat.belongsTo(User, {
     foreignKey: "senderId"
 });
 
@@ -57,6 +77,14 @@ Group.belongsToMany(User, {
     foreignKey: "GroupId",
     otherKey: "UserId",
     as: "members"
+});
+
+UserGroup.belongsTo(Group, {
+    foreignKey: "GroupId"
+});
+
+Group.hasMany(UserGroup, {
+    foreignKey: "GroupId"
 });
 
 

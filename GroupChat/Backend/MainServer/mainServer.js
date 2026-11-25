@@ -7,12 +7,15 @@ import cors from "cors";
 import {createServer} from "http";
 import cookieParser from "cookie-parser";
 import { initializeSocket } from "../Websockets/index.js";
+import { archiveMessages } from "../Services/archiveMessages.js";
 
 dotenv.config();
 
 await sequelize.authenticate();
 
 await sequelize.sync();
+
+archiveMessages();
 
 const app = express();
 

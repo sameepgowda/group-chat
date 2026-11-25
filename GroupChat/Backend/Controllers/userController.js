@@ -86,9 +86,33 @@ const fetchUsers = async (req,res,next) => {
 
 const fetchExistingUsers = async (req,res,next)=> {
     try{
+        console.log("BLAH BLAH",req.UserId)
 const existing_messages = await PersonalChat.findAll({where:{[Op.or]:[{senderId:req.UserId},{receiverId:req.UserId}]},raw:true});
-    const exisitng_users = existing_messages.map((val)=>val.senderId==req.UserId?val.receiverId:val.senderId);
-    const userList = await User.findAll({where:{id:{[Op.in]:exisitng_users},id:{ [Op.ne]: req.UserId }},raw:true,attributes: ["id", "username"]});
+console.log(existing_messages);
+    const existing_users = existing_messages.map((val)=>val.senderId==req.UserId?val.receiverId:val.senderId);
+   
+    let userList = [];
+    if(existing_users.length>0) {
+        userList = await User.findAll({
+    where: {
+        [Op.and]: [
+            {
+                id: {
+                    [Op.in]: existing_users
+                }
+            },
+            {
+                id: {
+                    [Op.ne]: req.UserId
+                }
+            }
+        ]
+    },
+    raw: true,
+    attributes: ["id", "username"]
+});
+    }
+         console.log(userList)
     res.status(200).json({userList});
     }catch(err){
         next(err);

@@ -53,7 +53,7 @@ function Login() {
         "http://localhost:3000/groupChat/user/login",
         payload
       );
-      sessionStorage.setItem("token",response.data.token);
+      sessionStorage.setItem("UserId",response.data.UserId);
       // Axios only gets here for 2xx responses
       showToast(
         "success",

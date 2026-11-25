@@ -73,7 +73,7 @@ const fetchAllGroups = async (req,res) => {
        const exisitingGroups = await UserGroup.findAll({where:{UserId:req.UserId},raw:true});
        let existingGroupsIds = exisitingGroups.map((val)=>val.goupId);
 
-       let resArray = groups.filter((val)=>!existingGroupsIds.includes(val.grouId));
+       let resArray = groups.filter((val)=>!existingGroupsIds.includes(val.groupId));
        
          res.status(200).json({groups:resArray})
     }catch(err){
